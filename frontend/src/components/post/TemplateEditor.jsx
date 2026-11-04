@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import InteractiveCanvas, { useInteractiveCanvas } from "@/template-engine/render/InteractiveCanvas";
+import { adaptTemplateDocument, parseDesignTemplate } from "@/template-engine/templates/validateDesignTemplate";
+import { applyCanvasCommand as applyDesignCommand } from "@/template-engine/render/utils/transforms";
 
 const FIELD_LIMITS = { headline: 120, subtitle: 200, cta: 40 };
 const FALLBACK_OPTIONS = {
@@ -55,6 +58,10 @@ export default function TemplateEditor({ media, open, onOpenChange, onApplied })
   const [previewError, setPreviewError] = useState("");
   const [busy, setBusy] = useState("");
   const [logoBusy, setLogoBusy] = useState(false);
+  const [interactivePreview, setInteractivePreview] = useState(useInteractiveCanvas);
+  const [canvasTemplate, setCanvasTemplate] = useState(null);
+  const [templateParseError, setTemplateParseError] = useState("");
+  const [canvasSelection, setCanvasSelection] = useState(null);
   const canSave = can(user, "upload");
   const canExport = can(user, "approve");
   const options = library?.options || {};
@@ -72,6 +79,42 @@ export default function TemplateEditor({ media, open, onOpenChange, onApplied })
     setName(first.name);
     setConfig(first.config);
   }, [library, config]);
+
+  useEffect(() => {
+    if (!config) return;
+    setTemplateParseError("");
+    try {
+      if (process.env.NODE_ENV !== "production") console.info("[TemplateEditor] Backend config", config);
+      const adaptedTemplate = adaptTemplateDocument(config);
+      if (process.env.NODE_ENV !== "production") console.info("[TemplateEditor] Legacy adapter result", adaptedTemplate);
+      const validatedTemplate = parseDesignTemplate(adaptedTemplate);
+      if (process.env.NODE_ENV !== "production") {
+        console.info("[TemplateEditor] Validated DesignTemplate", validatedTemplate);
+        console.info("[TemplateEditor] Number of elements", validatedTemplate.elements.length);
+      }
+      setCanvasTemplate(validatedTemplate);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error("[TemplateEditor] Template Parse Error", error);
+      setCanvasTemplate(null);
+      setTemplateParseError(reason);
+    }
+  }, [config]);
+
+  useEffect(() => {
+    if (!open || !interactivePreview || !canvasTemplate || templateParseError) return;
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[TemplateEditor] Mounted renderer", {
+        elementCount: canvasTemplate.elements.length,
+        selectedMode: "Interactive",
+      });
+    }
+  }, [open, interactivePreview, canvasTemplate, templateParseError]);
+
+  const applyCanvasTransaction = (commands) => setCanvasTemplate((current) => current && ({
+    ...current,
+    elements: commands.reduce((elements, command) => applyDesignCommand(elements, command), current.elements),
+  }));
 
   useEffect(() => {
     if (!open || !config || !media?.id) return undefined;
@@ -339,16 +382,25 @@ export default function TemplateEditor({ media, open, onOpenChange, onApplied })
               <aside className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="eyebrow">Live preview</div>
-                  <Select value={variant} onValueChange={setVariant}>
-                    <SelectTrigger className="w-36 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="portrait">Portrait</SelectItem><SelectItem value="story">Story</SelectItem></SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Button variant={interactivePreview ? "default" : "outline"} size="sm" className="rounded-xl" onClick={() => setInteractivePreview(true)}>Interactive</Button>
+                    <Button variant={!interactivePreview ? "default" : "outline"} size="sm" className="rounded-xl" onClick={() => setInteractivePreview(false)}>Legacy</Button>
+                    {!interactivePreview && <Select value={variant} onValueChange={setVariant}>
+                      <SelectTrigger className="w-36 rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="portrait">Portrait</SelectItem><SelectItem value="story">Story</SelectItem></SelectContent>
+                    </Select>}
+                  </div>
                 </div>
-                <div className="grid min-h-80 place-items-center overflow-hidden rounded-2xl border border-border bg-muted/30 p-3">
-                  {preview ? <img src={preview.image} alt={`${name} template preview`} className="max-h-[65vh] max-w-full rounded-lg object-contain" data-testid="template-preview-image" />
-                    : previewError ? <p role="alert" className="max-w-sm text-center text-sm text-rose-400">{previewError}</p>
-                      : <Spinner />}
-                </div>
+                {templateParseError ? <div role="alert" data-testid="template-parse-error" className="grid min-h-80 place-content-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 text-center">
+                  <h3 className="font-semibold text-rose-400">Template Parse Error</h3>
+                  <p className="max-w-lg text-sm text-muted-foreground">{templateParseError}</p>
+                </div> : !canvasTemplate ? <div role="status" className="grid min-h-80 place-items-center rounded-2xl border border-border bg-muted/30 p-3"><Spinner /></div>
+                  : interactivePreview ? <InteractiveCanvas template={canvasTemplate} context={{ imageSrc: media?.urls?.[variant] || media?.urls?.portrait, brand: { logo: config.logo_url } }} format={variant === "story" ? "story" : "portrait"} selectedId={canvasSelection} onSelectionChange={setCanvasSelection} onTransaction={applyCanvasTransaction} className="min-h-[520px]" />
+                    : <div className="grid min-h-80 place-items-center overflow-hidden rounded-2xl border border-border bg-muted/30 p-3">
+                      {preview ? <img src={preview.image} alt={name + " template preview"} className="max-h-[65vh] max-w-full rounded-lg object-contain" data-testid="template-preview-image" />
+                        : previewError ? <p role="alert" className="max-w-sm text-center text-sm text-rose-400">{previewError}</p>
+                          : <Spinner />}
+                    </div>}
                 {preview?.warning && <p role="status" className="text-xs text-amber-500">{preview.warning}</p>}
                 <p className="text-xs text-muted-foreground">Preview uses the selected approval image. Changes apply to both portrait and story variants when exported.</p>
                 <div className="flex flex-wrap gap-2">

@@ -1,12 +1,14 @@
 import { resolveTemplateLayout } from "../layouts/LayoutEngine";
 import categories from "./premium-template-categories.json";
 import type {
+  Anchor,
   BadgeConfig,
   DecorationConfig,
   OverlayConfig,
   RegionConfig,
   TemplateConfig,
 } from "../types";
+import { getPremiumTemplate } from "./premiumTemplates";
 import type {
   DesignElement,
   DesignFormat,
@@ -18,6 +20,158 @@ const FORMAT_SIZES: Record<DesignFormat, { width: number; height: number }> = {
   story: { width: 1080, height: 1920 },
   square: { width: 1080, height: 1080 },
 };
+
+const BACKEND_PRESET_TEMPLATES = {
+  LUXURY_SHOWCASE: "luxury-showcase",
+  WORK_IN_PROGRESS: "wardrobe-progress",
+  BEFORE_AFTER: "before-after",
+  PROJECT_UPDATE: "project-timeline",
+  PROMOTION: "limited-offer",
+  QUOTE: "client-review",
+  TIP: "architecture-notes",
+  COMPLETED_PROJECT: "completion-day",
+} as const;
+
+const BACKEND_FONTS = {
+  serif: ["Playfair Display", "Georgia"],
+  classic: ["Georgia", "serif"],
+  sans: ["Inter", "Arial"],
+  modern: ["Montserrat", "Arial"],
+} as const;
+
+const BACKEND_TEXT_ALIGNMENTS = ["left", "center", "right"] as const;
+const BACKEND_CTA_POSITIONS = ["stack", "top_right", "bottom_left", "bottom_center", "bottom_right"] as const;
+const BACKEND_LOGO_POSITIONS = ["top_left", "top_center", "top_right", "bottom_left", "bottom_center", "bottom_right"] as const;
+const BACKEND_BUTTON_STYLES = ["rounded", "square", "outline"] as const;
+
+type BackendPresetKey = keyof typeof BACKEND_PRESET_TEMPLATES;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requiredString<T extends string = string>(
+  value: unknown,
+  field: string,
+  allowed?: readonly T[],
+): T {
+  if (typeof value !== "string" || (allowed && !allowed.includes(value as T))) {
+    throw new Error(`Backend template config "${field}" is invalid.`);
+  }
+  return value as T;
+}
+
+function requiredNumber(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`Backend template config "${field}" must be a finite number.`);
+  }
+  return value;
+}
+
+function requiredBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`Backend template config "${field}" must be a boolean.`);
+  }
+  return value;
+}
+
+function positionRegion(region: RegionConfig, anchor: Anchor): RegionConfig {
+  const margin = 0.06;
+  const centeredX = (1 - region.width) / 2;
+  const rightX = 1 - region.width - margin;
+  const bottomY = 1 - region.height - margin;
+  const x = anchor.endsWith("left") ? margin
+    : anchor.endsWith("right") ? rightX
+      : centeredX;
+  const y = anchor.startsWith("bottom") ? bottomY
+    : anchor.startsWith("top") ? margin
+      : (1 - region.height) / 2;
+  return { ...region, x, y, anchor };
+}
+
+export function fromBackendTemplateConfig(value: unknown): DesignTemplate {
+  if (!isRecord(value)) {
+    throw new Error("Backend template config must be an object.");
+  }
+
+  const templateType = requiredString(
+    value.template_type,
+    "template_type",
+    Object.keys(BACKEND_PRESET_TEMPLATES) as BackendPresetKey[],
+  );
+  const base = getPremiumTemplate(BACKEND_PRESET_TEMPLATES[templateType]);
+  const headline = requiredString(value.headline, "headline");
+  const subtitle = requiredString(value.subtitle, "subtitle");
+  const ctaText = requiredString(value.cta, "cta");
+  const logoUrl = requiredString(value.logo_url, "logo_url");
+  const primaryColor = requiredString(value.primary_color, "primary_color");
+  const secondaryColor = requiredString(value.secondary_color, "secondary_color");
+  const font = requiredString(value.font, "font", Object.keys(BACKEND_FONTS) as (keyof typeof BACKEND_FONTS)[]);
+  const textAlign = requiredString(value.text_align, "text_align", BACKEND_TEXT_ALIGNMENTS);
+  const overlayOpacity = requiredNumber(value.overlay_opacity, "overlay_opacity");
+  const showBadge = requiredBoolean(value.show_badge, "show_badge");
+  const showLogo = requiredBoolean(value.show_logo, "show_logo");
+  const ctaPosition = requiredString(value.cta_position, "cta_position", BACKEND_CTA_POSITIONS);
+  const logoPosition = requiredString(value.logo_position, "logo_position", BACKEND_LOGO_POSITIONS);
+  const buttonStyle = requiredString(value.button_style, "button_style", BACKEND_BUTTON_STYLES);
+
+  if (overlayOpacity < 0 || overlayOpacity > 1) {
+    throw new Error('Backend template config "overlay_opacity" must be between 0 and 1.');
+  }
+
+  const [fontFamily, fallbackFamily] = BACKEND_FONTS[font];
+  const ctaAnchor = ctaPosition === "stack" ? undefined : ctaPosition;
+  const regions = { ...base.layout.regions };
+  if (ctaAnchor && regions.cta) regions.cta = positionRegion(regions.cta, ctaAnchor);
+  if (regions.logo) regions.logo = positionRegion(regions.logo, logoPosition);
+
+  const updated = {
+    ...base,
+    content_bindings: {
+      ...base.content_bindings,
+      headline: `content.headline|${headline}`,
+      subtitle: `content.subtitle|${subtitle}`,
+      cta: `content.cta|${ctaText}`,
+    },
+    layout: { ...base.layout, regions },
+    typography: {
+      ...base.typography,
+      family: fontFamily,
+      fallback_family: fallbackFamily,
+      alignment: textAlign,
+    },
+    colors: {
+      ...base.colors,
+      primary: primaryColor || base.colors.primary,
+      secondary: secondaryColor || base.colors.secondary,
+    },
+    overlays: base.overlays.map((overlay) => ({ ...overlay, opacity: overlayOpacity })),
+    logo: {
+      ...base.logo,
+      enabled: showLogo,
+      asset_ref: logoUrl || base.logo.asset_ref,
+    },
+    badges: base.badges.map((badge, index) => index === 0
+      ? { ...badge, enabled: showBadge }
+      : badge),
+    cta: {
+      ...base.cta,
+      text_binding: `content.cta|${ctaText}`,
+      style: buttonStyle === "outline" ? "outline" : buttonStyle === "square" ? "filled" : "pill",
+      radius: buttonStyle === "square" ? 0 : base.cta.radius,
+      background_color: primaryColor || base.cta.background_color,
+      border_color: primaryColor || base.cta.border_color,
+    },
+  } satisfies TemplateConfig;
+
+  const designTemplate = fromLegacyTemplateConfig(updated);
+  designTemplate.metadata = {
+    ...designTemplate.metadata,
+    backendTemplateConfig: value,
+    backendTemplateType: templateType,
+  };
+  return designTemplate;
+}
 
 function fallbackText(binding: string): string {
   const fallback = binding.split("|", 2)[1];

@@ -1,6 +1,6 @@
 import { getSupportedElementTypes } from "../components/designElementRegistry";
 import { parseTemplateConfig } from "../validate";
-import { fromLegacyTemplateConfig } from "./legacyTemplateAdapter";
+import { fromBackendTemplateConfig, fromLegacyTemplateConfig } from "./legacyTemplateAdapter";
 import type { DesignElement, DesignTemplate } from "../types/designTemplate";
 import type { TemplateConfig } from "../types";
 
@@ -205,7 +205,7 @@ export function validateDesignTemplate(value: unknown): string[] {
   return errors;
 }
 
-export function parseDesignTemplate(input: DesignTemplate | string): DesignTemplate {
+export function parseDesignTemplate(input: unknown): DesignTemplate {
   let value: unknown = input;
   if (typeof input === "string") {
     try {
@@ -219,9 +219,13 @@ export function parseDesignTemplate(input: DesignTemplate | string): DesignTempl
   return value as DesignTemplate;
 }
 
-export function parseTemplateDocument(
-  input: DesignTemplate | TemplateConfig | string,
-): DesignTemplate {
+export function parseTemplateDocument(input: unknown): DesignTemplate {
+  return parseDesignTemplate(adaptTemplateDocument(input));
+}
+
+export function adaptTemplateDocument(
+  input: unknown,
+): unknown {
   let value: unknown = input;
   if (typeof input === "string") {
     try {
@@ -231,9 +235,23 @@ export function parseTemplateDocument(
     }
   }
   if (isRecord(value) && value.schemaVersion === 2) {
-    return parseDesignTemplate(value as unknown as DesignTemplate);
+    return value;
   }
-  return fromLegacyTemplateConfig(parseTemplateConfig(value as TemplateConfig));
+  if (isRecord(value) && value.schema_version === 1) {
+    return fromLegacyTemplateConfig(parseTemplateConfig(value as unknown as TemplateConfig));
+  }
+  if (isRecord(value) && isRecord(value.design_document) && value.design_document.schemaVersion === 2) {
+    const { design_document: rawDocument, ...legacyConfig } = value;
+    const document = parseDesignTemplate(rawDocument);
+    return {
+      ...document,
+      metadata: { ...document.metadata, backendTemplateConfig: legacyConfig },
+    };
+  }
+  if (isRecord(value) && typeof value.template_type === "string") {
+    return fromBackendTemplateConfig(value);
+  }
+  throw new Error("Template must be DesignTemplate v2, a schema-v1 template, or a backend preset config.");
 }
 
 export async function loadDesignTemplate(source: string | URL): Promise<DesignTemplate> {

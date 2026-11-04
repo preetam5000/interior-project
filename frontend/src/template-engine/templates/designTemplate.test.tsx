@@ -4,6 +4,7 @@ import { DESIGN_ELEMENT_REGISTRY, getSupportedElementTypes } from "../components
 import { DesignTemplateRenderer } from "../renderers/DesignTemplateRenderer";
 import { TEMPLATE_REGISTRY } from "./TemplateRegistry";
 import { fromLegacyTemplateConfig } from "./legacyTemplateAdapter";
+import { parseTemplateDocument } from "./validateDesignTemplate";
 import { validateDesignTemplate } from "./validateDesignTemplate";
 import { getPremiumTemplate, PREMIUM_TEMPLATES } from "./premiumTemplates";
 import type { DesignTemplate } from "../types/designTemplate";
@@ -47,6 +48,37 @@ function sampleTemplate(): DesignTemplate {
   };
 }
 
+const backendPresetTypes = [
+  "LUXURY_SHOWCASE",
+  "WORK_IN_PROGRESS",
+  "BEFORE_AFTER",
+  "PROJECT_UPDATE",
+  "PROMOTION",
+  "QUOTE",
+  "TIP",
+  "COMPLETED_PROJECT",
+] as const;
+
+function backendPresetConfig(template_type: typeof backendPresetTypes[number]) {
+  return {
+    template_type,
+    headline: "A considered interior",
+    subtitle: "Thoughtful details, made to last",
+    cta: "Discover more",
+    logo_url: "",
+    primary_color: "",
+    secondary_color: "",
+    font: template_type === "QUOTE" ? "classic" : "serif",
+    text_align: template_type === "PROMOTION" || template_type === "QUOTE" ? "center" : "left",
+    overlay_opacity: 0.6,
+    show_badge: true,
+    show_logo: true,
+    cta_position: "stack",
+    logo_position: "top_left",
+    button_style: "rounded",
+  };
+}
+
 describe("JSON design template architecture", () => {
   test("registers the full reusable element component registry", () => {
     const types = getSupportedElementTypes();
@@ -66,6 +98,23 @@ describe("JSON design template architecture", () => {
     const migrated = fromLegacyTemplateConfig(getPremiumTemplate("luxury-showcase"));
     expect(migrated.metadata.legacyTemplateConfig).toEqual(getPremiumTemplate("luxury-showcase"));
     expect(migrated.elements.map(({ type }) => type)).toContain("Heading");
+    expect(parseTemplateDocument(getPremiumTemplate("luxury-showcase")).schemaVersion).toBe(2);
+  });
+
+  test.each(backendPresetTypes)("converts and validates the backend %s preset", (templateType) => {
+    const template = parseTemplateDocument(backendPresetConfig(templateType));
+    expect(template.schemaVersion).toBe(2);
+    expect(template.metadata.backendTemplateType).toBe(templateType);
+    expect(template.elements.length).toBeGreaterThan(0);
+    expect(template.elements.map(({ type }) => type)).toContain("Heading");
+    expect(validateDesignTemplate(template)).toEqual([]);
+  });
+
+  test("rejects unknown legacy backend preset types with a visible parse reason", () => {
+    expect(() => parseTemplateDocument({
+      ...backendPresetConfig("LUXURY_SHOWCASE"),
+      template_type: "UNKNOWN_PRESET",
+    })).toThrow('Backend template config "template_type" is invalid.');
   });
 
   test("validates the complete normalized template contract", () => {
