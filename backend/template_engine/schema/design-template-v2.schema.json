@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://interior-social-ai.local/schemas/design-template-v2.schema.json",
+  "title": "Interior Social AI Design Template",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "category",
+    "description",
+    "tags",
+    "thumbnail",
+    "supportedFormats",
+    "canvas",
+    "background",
+    "branding",
+    "elements",
+    "animations",
+    "metadata"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "category": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 2000 },
+    "tags": { "type": "array", "items": { "type": "string", "maxLength": 80 }, "uniqueItems": true },
+    "thumbnail": { "type": "string" },
+    "supportedFormats": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["portrait", "story", "square"] }
+    },
+    "canvas": { "$ref": "#/$defs/Canvas" },
+    "background": { "$ref": "#/$defs/Background" },
+    "branding": { "$ref": "#/$defs/Branding" },
+    "elements": { "type": "array", "items": { "$ref": "#/$defs/Element" } },
+    "animations": { "type": "array", "items": { "$ref": "#/$defs/Animation" } },
+    "metadata": { "type": "object" }
+  },
+  "$defs": {
+    "Color": {
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\([0-9.%\\s,]+\\)|hsla?\\([0-9.%\\s,deg]+\\)|transparent|currentColor|\\$[A-Za-z0-9_-]+)$"
+    },
+    "Gradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "stops"],
+      "properties": {
+        "type": { "enum": ["linear", "radial"] },
+        "angle": { "type": "number", "minimum": 0, "maximum": 360 },
+        "stops": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["color", "position"],
+            "properties": {
+              "color": { "$ref": "#/$defs/Color" },
+              "position": { "type": "number", "minimum": 0, "maximum": 1 },
+              "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "Shadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color", "blur", "offsetX", "offsetY"],
+      "properties": {
+        "color": { "$ref": "#/$defs/Color" },
+        "blur": { "type": "number", "minimum": 0, "maximum": 200 },
+        "offsetX": { "type": "number" },
+        "offsetY": { "type": "number" }
+      }
+    },
+    "Canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "unit"],
+      "properties": {
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "const": "px" },
+        "safeZones": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "portrait": { "$ref": "#/$defs/SafeZone" },
+            "story": { "$ref": "#/$defs/SafeZone" },
+            "square": { "$ref": "#/$defs/SafeZone" }
+          }
+        }
+      }
+    },
+    "SafeZone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "right", "bottom", "left"],
+      "properties": {
+        "top": { "type": "number", "minimum": 0, "maximum": 1 },
+        "right": { "type": "number", "minimum": 0, "maximum": 1 },
+        "bottom": { "type": "number", "minimum": 0, "maximum": 1 },
+        "left": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "Background": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "$ref": "#/$defs/Color" },
+        "image": { "type": "string" },
+        "gradient": { "$ref": "#/$defs/Gradient" }
+      }
+    },
+    "Branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logo": { "type": "string" },
+        "socialHandle": { "type": "string" },
+        "palette": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Color" } }
+      }
+    },
+    "Element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "x", "y", "width", "height", "rotation", "opacity", "zIndex", "visible", "locked"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_.:-]+$" },
+        "type": {
+          "enum": [
+            "Image", "Text", "Heading", "Subtitle", "Logo", "Badge", "CTA Button",
+            "Shape", "Divider", "Gradient", "Icon", "Progress Bar", "QR Code",
+            "Social Handle", "Sticker", "Decorative Object"
+          ]
+        },
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "rotation": { "type": "number" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "zIndex": { "type": "integer" },
+        "visible": { "type": "boolean" },
+        "locked": { "type": "boolean" },
+        "content": { "type": "string" },
+        "source": { "type": "string" },
+        "fontFamily": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9 _,\"'-]+$" },
+        "fontWeight": { "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 100, "maximum": 900 }] },
+        "fontSize": { "type": "number", "exclusiveMinimum": 0 },
+        "lineHeight": { "type": "number", "exclusiveMinimum": 0 },
+        "letterSpacing": { "type": "number" },
+        "color": { "$ref": "#/$defs/Color" },
+        "stroke": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color", "width"],
+          "properties": { "color": { "$ref": "#/$defs/Color" }, "width": { "type": "number", "minimum": 0 } }
+        },
+        "shadow": { "$ref": "#/$defs/Shadow" },
+        "gradient": { "$ref": "#/$defs/Gradient" },
+        "alignment": { "enum": ["left", "center", "right"] },
+        "crop": { "enum": ["cover", "contain", "fill"] },
+        "brightness": { "type": "number", "minimum": 0, "maximum": 2 },
+        "contrast": { "type": "number", "minimum": 0, "maximum": 2 },
+        "saturation": { "type": "number", "minimum": 0, "maximum": 2 },
+        "blur": { "type": "number", "minimum": 0, "maximum": 100 },
+        "borderRadius": { "type": "number", "minimum": 0 },
+        "padding": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "top": { "type": "number", "minimum": 0 },
+                "right": { "type": "number", "minimum": 0 },
+                "bottom": { "type": "number", "minimum": 0 },
+                "left": { "type": "number", "minimum": 0 }
+              }
+            }
+          ]
+        },
+        "radius": { "type": "number", "minimum": 0 },
+        "border": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color", "width"],
+          "properties": {
+            "color": { "$ref": "#/$defs/Color" },
+            "width": { "type": "number", "minimum": 0 },
+            "style": { "enum": ["solid", "dashed", "dotted"] }
+          }
+        },
+        "icon": { "type": "string" },
+        "progress": { "type": "number", "minimum": 0, "maximum": 100 },
+        "style": { "type": "object" },
+        "data": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["Text", "Heading", "Subtitle", "Badge", "CTA Button", "Social Handle", "Sticker"] } } },
+          "then": { "required": ["fontFamily", "fontWeight", "fontSize", "lineHeight", "letterSpacing", "color", "alignment"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Image" } } },
+          "then": { "required": ["source", "crop", "brightness", "contrast", "saturation", "blur", "borderRadius", "shadow"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "CTA Button" } } },
+          "then": { "required": ["padding", "radius", "border", "gradient", "shadow", "icon"] }
+        }
+      ]
+    },
+    "Animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "target", "property", "from", "to", "startMs", "durationMs", "easing"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "property": { "enum": ["opacity", "translateX", "translateY", "scale", "rotate"] },
+        "from": { "type": "number" },
+        "to": { "type": "number" },
+        "startMs": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 1 },
+        "easing": { "enum": ["linear", "ease-in", "ease-out", "ease-in-out"] }
+      }
+    }
+  }
+}

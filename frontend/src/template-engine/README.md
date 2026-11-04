@@ -1,4 +1,78 @@
-# React template renderer
+# Interior Social AI design engine
+
+## JSON-driven design templates
+
+New engine templates use `schemaVersion: 2` and the contract in
+`backend/template_engine/schema/design-template-v2.schema.json`. A design is
+data: catalog metadata, canvas and safe zones, background and brand tokens,
+normalized elements, animations, and extensible metadata. Element positions
+and dimensions use normalized 0–1 values; `zIndex` controls stacking.
+
+`DesignTemplateRenderer` reads this JSON, resolves the output format and
+bindings, sorts elements by z-index, and creates React elements through
+`DESIGN_ELEMENT_REGISTRY`. Each element's styles and transforms are applied
+independently of its template identity. Adding another template is data
+registration; adding a new visual primitive is a registry component, not a
+template layout branch.
+
+The registry supports Image, Text, Heading, Subtitle, Logo, Badge, CTA Button,
+Shape, Divider, Gradient, Icon, Progress Bar, QR Code, Social Handle, Sticker,
+and Decorative Object. `validateDesignTemplate` checks required metadata,
+unique element IDs, positions/bounds, supported types, colors, fonts, and
+animation targets before registry insertion or rendering.
+
+`TemplateRegistry` is the loading/catalog boundary. It validates registrations,
+rejects duplicate IDs, and provides category/search filtering. The existing
+30-template JSON-backed catalog is automatically registered through
+`fromLegacyTemplateConfig`; the adapter retains the original v1 configuration
+in metadata for round-trip migration and does not change the existing editor or
+canvas export path.
+
+### Engine structure
+
+```text
+template-engine/
+  types/                  v2 schema TypeScript contracts
+  templates/              registries, legacy adapter, validation
+  components/             reusable element renderers and registry
+  renderers/              React design stage and legacy canvas exporter
+  layouts/ typography/     existing v1 compatibility utilities
+  overlays/ assets/        shared existing assets and drawing helpers
+backend/template_engine/schema/
+  design-template-v2.schema.json
+```
+
+### Class diagram
+
+```text
+TemplateRegistry --> DesignTemplateValidator
+TemplateRegistry --> LegacyTemplateAdapter --> DesignTemplate
+DesignTemplateRenderer --> DesignTemplate
+DesignTemplateRenderer --> ElementRendererRegistry
+ElementRendererRegistry --> ElementRenderer [Image, Text, Shape, ...]
+DesignTemplateRenderer --> RenderContext [assets, content, brand, format]
+Legacy TemplateRenderer --> CanvasRenderer [existing v1 API/export]
+```
+
+### Loading and render flow
+
+```text
+JSON or legacy config
+  -> parseDesignTemplate / fromLegacyTemplateConfig
+  -> validate schema and element registry references
+  -> register by unique template id
+  -> resolve asset, content, and brand bindings
+  -> sort elements by zIndex
+  -> create React elements from the component registry
+  -> apply normalized geometry, styles, rotation, opacity, and animation
+  -> render a responsive canvas stage
+```
+
+The current engine work is architecture-only: it does not add drag/drop,
+editing UI, autosave, or a new export pipeline. Existing v1 templates keep using
+the current CanvasRenderer and its portrait/story/square export behavior.
+
+## Existing v1 canvas renderer
 
 The renderer accepts a JSON string or a `TemplateConfig`, then composes a
 source image and reusable canvas components according to the document's

@@ -8,6 +8,127 @@ from __future__ import annotations
 from typing import Literal, TypedDict
 
 
+DesignFormat = Literal["portrait", "story", "square"]
+DesignElementType = Literal[
+    "Image", "Text", "Heading", "Subtitle", "Logo", "Badge", "CTA Button",
+    "Shape", "Divider", "Gradient", "Icon", "Progress Bar", "QR Code",
+    "Social Handle", "Sticker", "Decorative Object",
+]
+
+
+class DesignGradientStop(TypedDict, total=False):
+    color: str
+    position: float
+    opacity: float
+
+
+class DesignGradient(TypedDict, total=False):
+    type: Literal["linear", "radial"]
+    angle: float
+    stops: list[DesignGradientStop]
+
+
+class DesignShadow(TypedDict, total=False):
+    color: str
+    blur: float
+    offsetX: float
+    offsetY: float
+
+
+class DesignElement(TypedDict):
+    id: str
+    type: DesignElementType
+    x: float
+    y: float
+    width: float
+    height: float
+    rotation: float
+    opacity: float
+    zIndex: int
+    visible: bool
+    locked: bool
+
+
+class DesignElementStyle(DesignElement, total=False):
+    content: str
+    source: str
+    fontFamily: str
+    fontWeight: str | int
+    fontSize: float
+    lineHeight: float
+    letterSpacing: float
+    color: str
+    stroke: dict[str, object]
+    shadow: DesignShadow
+    gradient: DesignGradient
+    alignment: Literal["left", "center", "right"]
+    crop: Literal["cover", "contain", "fill"]
+    brightness: float
+    contrast: float
+    saturation: float
+    blur: float
+    borderRadius: float
+    padding: float | InsetsConfig
+    radius: float
+    border: dict[str, object]
+    icon: str
+    progress: float
+    style: dict[str, object]
+    data: dict[str, str | int | float | bool]
+
+
+class DesignCanvas(TypedDict, total=False):
+    width: float
+    height: float
+    unit: Literal["px"]
+    safeZones: dict[DesignFormat, InsetsConfig]
+
+
+class DesignBackground(TypedDict, total=False):
+    color: str
+    image: str
+    gradient: DesignGradient
+
+
+class DesignBranding(TypedDict, total=False):
+    logo: str
+    socialHandle: str
+    palette: dict[str, str]
+
+
+DesignAnimation = TypedDict(
+    "DesignAnimation",
+    {
+        "id": str,
+        "target": str,
+        "property": Literal["opacity", "translateX", "translateY", "scale", "rotate"],
+        "from": float,
+        "to": float,
+        "startMs": int,
+        "durationMs": int,
+        "easing": Literal["linear", "ease-in", "ease-out", "ease-in-out"],
+    },
+    total=False,
+)
+
+
+class DesignTemplateV2(TypedDict):
+    schemaVersion: Literal[2]
+    id: str
+    name: str
+    category: str
+    description: str
+    tags: list[str]
+    thumbnail: str
+    supportedFormats: list[DesignFormat]
+    canvas: DesignCanvas
+    background: DesignBackground
+    branding: DesignBranding
+    elements: list[DesignElementStyle]
+    animations: list[DesignAnimation]
+    metadata: dict[str, object]
+
+
 class PointConfig(TypedDict, total=False):
     x: float
     y: float

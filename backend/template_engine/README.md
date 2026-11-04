@@ -1,14 +1,16 @@
 # Template engine architecture
 
-This package defines a reusable, JSON-driven design system. It contains the
-contract and extension points only; it does not contain template instances or
-replace the current production renderer.
+This package defines the JSON contracts and extension points for the reusable
+design system. The current production upload/template editor still uses the
+legacy renderer; v2 designs are introduced through a frontend compatibility
+adapter without changing that runtime path.
 
 ## Package map
 
 | Path | Responsibility |
 | --- | --- |
 | `schema/template-config.schema.json` | Authoritative, versioned JSON contract and validation constraints. |
+| `schema/design-template-v2.schema.json` | Complete JSON contract for metadata-driven v2 design templates. |
 | `interfaces.py` | Python TypedDicts for configs and render input/output. |
 | `templates/` | Future JSON template instances; intentionally empty for now. |
 | `renderers/` | Output adapters implementing the shared `Renderer` protocol. |
@@ -67,6 +69,9 @@ completion stage content. These fields are retained under
 `story_text`. Estimated progress is marked with `progress_is_estimate`, and
 unknown locations are left blank rather than invented.
 
-The versioned JSON contract in this package remains an architecture extension
-point; preview/export migration can later route the existing production path
-through a schema adapter while preserving saved templates.
+The frontend `fromLegacyTemplateConfig` adapter converts v1 renderer configs
+into v2 elements and preserves the original config in metadata. The 30 premium
+templates are automatically registered from their JSON-backed catalog through
+this adapter. Existing editor, backend preview/export, and saved templates
+continue using their v1 flow until a separate migration wires the v2 schema
+into persistence and server-side rendering.
