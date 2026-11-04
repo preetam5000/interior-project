@@ -1,0 +1,75 @@
+{
+  "name": "Interior Social AI — Drive Ingest & Publishing",
+  "nodes": [
+    {
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}},
+      "id": "a1", "name": "Every 5 minutes", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0]
+    },
+    {
+      "parameters": {"url": "{{BASE_URL}}/api/n8n/config", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-API-Key", "value": "={{$env.INTERIOR_SOCIAL_API_KEY}}"}]}},
+      "id": "a2", "name": "Get watched folders", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [220, 0]
+    },
+    {
+      "parameters": {"resource": "fileFolder", "searchMethod": "query",
+        "queryString": "='{{$json.images_folder_id}}' in parents and mimeType contains 'image/'",
+        "returnAll": true, "filter": {}, "options": {"fields": ["id", "name", "mimeType", "parents"]}},
+      "id": "a3", "name": "List Drive files", "type": "n8n-nodes-base.googleDrive", "typeVersion": 3, "position": [440, 0]
+    },
+    {
+      "parameters": {"jsCode": "return [{ json: { drive_file_ids: $input.all().map(i => i.json.id), files: $input.all().map(i => i.json) } }];"},
+      "id": "a4", "name": "Collect IDs", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [660, 0]
+    },
+    {
+      "parameters": {"method": "POST", "url": "{{BASE_URL}}/api/n8n/check-duplicates", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-API-Key", "value": "={{$env.INTERIOR_SOCIAL_API_KEY}}"}]},
+        "sendBody": true, "specifyBody": "json", "jsonBody": "={{ { drive_file_ids: $json.drive_file_ids } }}"},
+      "id": "a5", "name": "Skip processed files", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [880, 0]
+    },
+    {
+      "parameters": {"jsCode": "const files = $('Collect IDs').first().json.files; const fresh = new Set($json.new); return files.filter(f => fresh.has(f.id)).map(f => ({ json: f }));"},
+      "id": "a6", "name": "Only new files", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1100, 0]
+    },
+    {
+      "parameters": {"operation": "download", "fileId": {"__rl": true, "value": "={{$json.id}}", "mode": "id"}, "options": {}},
+      "id": "a7", "name": "Download file", "type": "n8n-nodes-base.googleDrive", "typeVersion": 3, "position": [1320, 0]
+    },
+    {
+      "parameters": {"method": "POST", "url": "{{BASE_URL}}/api/n8n/ingest", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-API-Key", "value": "={{$env.INTERIOR_SOCIAL_API_KEY}}"}]},
+        "sendBody": true, "contentType": "multipart-form-data",
+        "bodyParameters": {"parameters": [
+          {"parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data"},
+          {"name": "drive_file_id", "value": "={{$('Only new files').item.json.id}}"},
+          {"name": "folder", "value": "={{$('Only new files').item.json.name.split(/[_\\- ]\\d+/)[0]}}"}
+        ]}},
+      "id": "a8", "name": "Send to FastAPI (AI pipeline)", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1540, 0]
+    },
+    {
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 1}]}},
+      "id": "b1", "name": "Every minute", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 300]
+    },
+    {
+      "parameters": {"url": "{{BASE_URL}}/api/n8n/posts/due", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-API-Key", "value": "={{$env.INTERIOR_SOCIAL_API_KEY}}"}]}},
+      "id": "b2", "name": "Get due scheduled posts", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [220, 300]
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{'{{BASE_URL}}/api/n8n/posts/' + $json.id + '/publish'}}", "sendHeaders": true,
+        "headerParameters": {"parameters": [{"name": "X-API-Key", "value": "={{$env.INTERIOR_SOCIAL_API_KEY}}"}]}},
+      "id": "b3", "name": "Publish via FastAPI", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [440, 300]
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {"main": [[{"node": "Get watched folders", "type": "main", "index": 0}]]},
+    "Get watched folders": {"main": [[{"node": "List Drive files", "type": "main", "index": 0}]]},
+    "List Drive files": {"main": [[{"node": "Collect IDs", "type": "main", "index": 0}]]},
+    "Collect IDs": {"main": [[{"node": "Skip processed files", "type": "main", "index": 0}]]},
+    "Skip processed files": {"main": [[{"node": "Only new files", "type": "main", "index": 0}]]},
+    "Only new files": {"main": [[{"node": "Download file", "type": "main", "index": 0}]]},
+    "Download file": {"main": [[{"node": "Send to FastAPI (AI pipeline)", "type": "main", "index": 0}]]},
+    "Every minute": {"main": [[{"node": "Get due scheduled posts", "type": "main", "index": 0}]]},
+    "Get due scheduled posts": {"main": [[{"node": "Publish via FastAPI", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1"}
+}

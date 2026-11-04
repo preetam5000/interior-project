@@ -1,0 +1,3 @@
+# Optional local AI segmentation runtime; install into the backend environment.
+torch>=2.2
+transformers>=4.44,<5

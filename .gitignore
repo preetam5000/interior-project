@@ -1,0 +1,27 @@
+# Environment files may contain API keys, passwords, and signing secrets.
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Dependencies and generated application output
+**/node_modules/
+**/build/
+**/dist/
+**/coverage/
+**/.cache/
+**/.pytest_cache/
+**/__pycache__/
+**/*.py[cod]
+**/*.log
+
+# Local models and runtime state
+**/.venv/
+**/venv/
+**/models/
+**/storage/*
+!backend/storage/.gitkeep
+*.pem
+*.key
+.DS_Store
+Thumbs.db

@@ -1,0 +1,28 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes: [mongo_data:/data/db]
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+    ports: ["8001:8001"]
+    depends_on: [mongo]
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BACKEND_URL: ${PUBLIC_BASE_URL:-http://localhost:8001}
+    ports: ["3000:80"]
+    depends_on: [backend]
+  n8n:
+    image: n8nio/n8n:latest
+    ports: ["5678:5678"]
+    environment:
+      INTERIOR_SOCIAL_API_KEY: ${INTERIOR_SOCIAL_API_KEY:-}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+    volumes: [n8n_data:/home/node/.n8n]
+volumes:
+  mongo_data:
+  n8n_data:

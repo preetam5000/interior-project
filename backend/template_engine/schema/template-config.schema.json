@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://interior-social-ai.local/schemas/template-config-v1.json",
+  "title": "Interior Social AI Template Configuration",
+  "description": "Portable, versioned contract for reusable social creative templates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "layout",
+    "typography",
+    "colors",
+    "overlays",
+    "logo",
+    "badges",
+    "cta",
+    "decorations",
+    "image_treatment",
+    "animations",
+    "content_bindings"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "layout": { "$ref": "#/$defs/LayoutConfig" },
+    "typography": { "$ref": "#/$defs/TypographyConfig" },
+    "colors": { "$ref": "#/$defs/ColorConfig" },
+    "overlays": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/OverlayConfig" }
+    },
+    "ImageCropConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fit", "focal_point"],
+      "properties": {
+        "fit": { "enum": ["cover", "contain"] },
+        "focal_point": { "$ref": "#/$defs/PointConfig" }
+      }
+    },
+    "logo": { "$ref": "#/$defs/LogoConfig" },
+    "badges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/BadgeConfig" }
+    },
+    "cta": { "$ref": "#/$defs/CTAConfig" },
+    "decorations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DecorationConfig" }
+    },
+    "image_treatment": { "$ref": "#/$defs/ImageFilterConfig" },
+    "animations": { "$ref": "#/$defs/AnimationConfig" },
+    "content_bindings": { "$ref": "#/$defs/ContentBindingsConfig" }
+  },
+  "$defs": {
+    "InsetsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "top": { "type": "number", "minimum": 0, "maximum": 1 },
+        "right": { "type": "number", "minimum": 0, "maximum": 1 },
+        "bottom": { "type": "number", "minimum": 0, "maximum": 1 },
+        "left": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "PointConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "RegionConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "anchor": {
+          "enum": [
+            "top_left", "top_center", "top_right",
+            "center_left", "center", "center_right",
+            "bottom_left", "bottom_center", "bottom_right"
+          ]
+        },
+        "align": { "enum": ["left", "center", "right"] },
+        "padding": { "$ref": "#/$defs/InsetsConfig" },
+        "clip": { "enum": ["none", "diagonal", "circle"] }
+      }
+    },
+    "LayoutConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aspect_ratio", "safe_area", "regions", "layer_order"],
+      "properties": {
+        "aspect_ratio": { "type": "string", "pattern": "^[1-9][0-9]*:[1-9][0-9]*$" },
+        "safe_area": { "$ref": "#/$defs/InsetsConfig" },
+        "preset": {
+          "enum": [
+            "hero-bottom", "hero-center", "split-screen", "magazine", "minimal",
+            "editorial", "blueprint", "timeline", "progress", "comparison",
+            "collage", "full-image", "diagonal", "luxury"
+          ]
+        },
+        "regions": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/RegionConfig" }
+        },
+        "image_regions": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/RegionConfig" }
+        },
+        "safe_zones": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "portrait": { "$ref": "#/$defs/InsetsConfig" },
+            "story": { "$ref": "#/$defs/InsetsConfig" },
+            "square": { "$ref": "#/$defs/InsetsConfig" }
+          }
+        },
+        "crops": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "portrait": { "$ref": "#/$defs/ImageCropConfig" },
+            "story": { "$ref": "#/$defs/ImageCropConfig" }
+          }
+        },
+        "layer_order": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "TypographyConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "fallback_family", "size", "weight", "line_height", "letter_spacing", "text_transform", "alignment", "color"],
+      "properties": {
+        "preset": {
+          "enum": ["luxury", "modern", "minimal", "construction", "editorial", "architectural", "magazine", "elegant", "bold", "instagram"]
+        },
+        "family": { "type": "string", "minLength": 1 },
+        "fallback_family": { "type": "string", "minLength": 1 },
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "weight": { "enum": ["regular", "medium", "semibold", "bold"] },
+        "line_height": { "type": "number", "exclusiveMinimum": 0 },
+        "letter_spacing": { "type": "number" },
+        "text_transform": { "enum": ["none", "uppercase", "lowercase", "capitalize"] },
+        "alignment": { "enum": ["left", "center", "right"] },
+        "color": { "$ref": "#/$defs/ColorValue" },
+        "shadow": { "$ref": "#/$defs/TextShadowConfig" },
+        "responsive_scaling": { "$ref": "#/$defs/ResponsiveScalingConfig" }
+      }
+    },
+    "TextShadowConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "color", "blur", "offset_x", "offset_y"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "color": { "type": "string", "minLength": 1 },
+        "blur": { "type": "number", "minimum": 0, "maximum": 100 },
+        "offset_x": { "type": "number", "minimum": -100, "maximum": 100 },
+        "offset_y": { "type": "number", "minimum": -100, "maximum": 100 }
+      }
+    },
+    "ResponsiveScalingConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "reference_width", "min_scale", "max_scale"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "reference_width": { "type": "number", "exclusiveMinimum": 0 },
+        "min_scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 },
+        "max_scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 }
+      }
+    },
+    "ColorValue": {
+      "oneOf": [
+        { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        { "type": "string", "pattern": "^\\$[a-z][a-z0-9_]*$" }
+      ]
+    },
+    "ColorConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "accent", "text", "surface"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/ColorValue" },
+        "secondary": { "$ref": "#/$defs/ColorValue" },
+        "accent": { "$ref": "#/$defs/ColorValue" },
+        "text": { "$ref": "#/$defs/ColorValue" },
+        "surface": { "$ref": "#/$defs/ColorValue" }
+      }
+    },
+    "OverlayConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "region", "color", "opacity", "blend_mode"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": [
+            "scrim", "linear_gradient", "radial_gradient", "color_wash",
+            "luxury_gradient", "dark_gradient", "glass", "blur", "blueprint_grid",
+            "golden_frame", "corner_accents", "progress_ribbon", "diagonal_stripe",
+            "noise_texture", "paper_texture", "film_grain"
+          ]
+        },
+        "region": { "type": "string", "minLength": 1 },
+        "color": { "$ref": "#/$defs/ColorValue" },
+        "end_color": { "$ref": "#/$defs/ColorValue" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "angle": { "type": "number", "minimum": 0, "maximum": 360 },
+        "blend_mode": { "enum": ["normal", "multiply", "screen", "overlay"] },
+        "blur_px": { "type": "number", "minimum": 0, "maximum": 100 },
+        "spacing": { "type": "number", "exclusiveMinimum": 0, "maximum": 512 },
+        "line_width": { "type": "number", "minimum": 0, "maximum": 100 },
+        "inset": { "type": "number", "minimum": 0 },
+        "radius": { "type": "number", "minimum": 0 },
+        "intensity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "text": { "type": "string", "maxLength": 120 },
+        "font_size": { "type": "number", "exclusiveMinimum": 0 },
+        "seed": { "type": "integer", "minimum": 0 },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 256 }
+      }
+    },
+    "LogoConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "asset_ref", "region", "anchor", "width", "opacity", "treatment"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "asset_ref": { "type": "string" },
+        "region": { "type": "string" },
+        "anchor": { "type": "string" },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "treatment": { "enum": ["original", "monochrome", "light", "dark"] }
+      }
+    },
+    "BadgeConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "enabled", "text_binding", "region", "anchor", "typography", "background_color", "text_color", "border_color", "radius", "padding"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" },
+        "text_binding": { "type": "string", "minLength": 1 },
+        "region": { "type": "string", "minLength": 1 },
+        "anchor": { "type": "string" },
+        "typography": { "$ref": "#/$defs/TypographyConfig" },
+        "background_color": { "$ref": "#/$defs/ColorValue" },
+        "text_color": { "$ref": "#/$defs/ColorValue" },
+        "border_color": { "$ref": "#/$defs/ColorValue" },
+        "radius": { "type": "number", "minimum": 0 },
+        "padding": { "$ref": "#/$defs/InsetsConfig" }
+      }
+    },
+    "CTAConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "text_binding", "region", "anchor", "style", "typography", "background_color", "text_color", "border_color", "radius", "padding"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "text_binding": { "type": "string", "minLength": 1 },
+        "region": { "type": "string", "minLength": 1 },
+        "anchor": { "type": "string" },
+        "style": { "enum": ["filled", "outline", "text", "pill"] },
+        "typography": { "$ref": "#/$defs/TypographyConfig" },
+        "background_color": { "$ref": "#/$defs/ColorValue" },
+        "text_color": { "$ref": "#/$defs/ColorValue" },
+        "border_color": { "$ref": "#/$defs/ColorValue" },
+        "radius": { "type": "number", "minimum": 0 },
+        "padding": { "$ref": "#/$defs/InsetsConfig" }
+      }
+    },
+    "DecorationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "region", "color", "opacity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["line", "frame", "shape", "texture"] },
+        "region": { "type": "string", "minLength": 1 },
+        "color": { "$ref": "#/$defs/ColorValue" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "thickness": { "type": "number", "minimum": 0 },
+        "radius": { "type": "number", "minimum": 0 },
+        "asset_ref": { "type": "string" }
+      }
+    },
+    "ImageFilterConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fit", "focal_point", "brightness", "contrast", "saturation", "blur", "grayscale", "vignette"],
+      "properties": {
+        "fit": { "enum": ["cover", "contain"] },
+        "focal_point": { "$ref": "#/$defs/PointConfig" },
+        "brightness": { "type": "number", "minimum": 0, "maximum": 2 },
+        "contrast": { "type": "number", "minimum": 0, "maximum": 2 },
+        "saturation": { "type": "number", "minimum": 0, "maximum": 2 },
+        "blur": { "type": "number", "minimum": 0, "maximum": 100 },
+        "grayscale": { "type": "number", "minimum": 0, "maximum": 1 },
+        "vignette": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "AnimationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "duration_ms", "easing", "poster_time_ms", "motions"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 0, "maximum": 60000 },
+        "easing": { "enum": ["linear", "ease_in", "ease_out", "ease_in_out"] },
+        "poster_time_ms": { "type": "integer", "minimum": 0 },
+        "motions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "property", "from", "to", "start_ms", "duration_ms"],
+            "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "property": { "enum": ["opacity", "translate_x", "translate_y", "scale", "rotate"] },
+              "from": { "type": "number" },
+              "to": { "type": "number" },
+              "start_ms": { "type": "integer", "minimum": 0 },
+              "duration_ms": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "ContentBindingsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headline", "subtitle", "cta", "badge"],
+      "properties": {
+        "headline": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "cta": { "type": "string" },
+        "badge": { "type": "string" }
+      }
+    }
+  }
+}
