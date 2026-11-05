@@ -18,6 +18,17 @@ def _png_bytes(size=(12, 10), color=(120, 110, 100)):
     return buffer.getvalue()
 
 
+def _assert_scene_preservation_contract(prompt):
+    prompt = prompt.lower()
+    assert "apply photographic adjustments only" in prompt
+    assert "preserve the existing scene, materials, objects, construction state, framing, viewpoint, and proportions" in prompt
+    assert "do not add, remove, replace, move, or reconstruct anything" in prompt
+    assert "do not change the architecture" in prompt
+    assert "do not complete unfinished construction" in prompt
+    assert "do not add furniture that does not exist" in prompt
+    assert "keep the result realistic" in prompt
+
+
 def test_edit_image_uses_images_edit_api_and_saves_returned_png(tmp_path, monkeypatch):
     source = tmp_path / "source.png"
     destination = tmp_path / "edited.png"
@@ -62,15 +73,7 @@ def test_edit_image_uses_images_edit_api_and_saves_returned_png(tmp_path, monkey
 def test_prompt_modes_keep_scene_preservation_rules_and_add_style(mode):
     prompt = editor.prompt_for_mode(mode).lower()
 
-    assert "preserve its exact scene" in prompt
-    assert "never add, remove, replace, clean up, complete, or move anything" in prompt
-    assert "do not crop, extend, reframe, or change composition" in prompt
-    assert "never redesign the room" in prompt
-    assert "complete unfinished construction" in prompt
-    assert "remove construction materials or tools" in prompt
-    assert "add furniture or fixtures" in prompt
-    assert "alter architecture" in prompt
-    assert "photographic realism" in prompt
+    _assert_scene_preservation_contract(prompt)
     assert editor.MODE_PROMPTS[mode].lower() in prompt
 
 
@@ -94,8 +97,7 @@ def test_prompt_mode_defaults_to_architectural():
 def test_adaptive_preset_prompts_preserve_scene_rules(mode):
     prompt = editor.prompt_for_mode(mode).lower()
 
-    assert "preserve every construction detail exactly" in prompt
-    assert "do not crop, extend, reframe, or change composition" in prompt
+    _assert_scene_preservation_contract(prompt)
     assert editor.MODE_PROMPTS[mode] in editor.prompt_for_mode(mode)
 
 

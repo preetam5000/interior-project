@@ -1,4 +1,11 @@
-"""Context-aware, reusable prompts for conservative architectural photo edits."""
+"""Context-aware prompts for conservative architectural photo edits.
+
+``BASE_EDIT_PROMPT`` is the canonical preservation contract inherited by every
+mode and context-specific prompt: preserve the source scene, objects, materials,
+construction state, framing, viewpoint, and proportions; apply photographic
+adjustments only. Additional prompt sections may guide photographic style, but
+must not authorize scene changes.
+"""
 from __future__ import annotations
 
 import logging

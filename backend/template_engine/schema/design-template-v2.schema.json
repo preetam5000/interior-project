@@ -32,7 +32,7 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["portrait", "story", "square"] }
+      "items": { "enum": ["portrait", "story", "square", "landscape", "carousel", "tablet", "desktop"] }
     },
     "canvas": { "$ref": "#/$defs/Canvas" },
     "background": { "$ref": "#/$defs/Background" },
@@ -44,7 +44,7 @@
   "$defs": {
     "Color": {
       "type": "string",
-      "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\([0-9.%\\s,]+\\)|hsla?\\([0-9.%\\s,deg]+\\)|transparent|currentColor|\\$[A-Za-z0-9_-]+)$"
+      "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\([0-9.%\\s,]+\\)|hsla?\\([0-9.%\\s,deg]+\\)|transparent|currentColor|\\$(?:[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*|\\{[A-Za-z0-9_.-]+\\}))$"
     },
     "Gradient": {
       "type": "object",
@@ -125,7 +125,8 @@
       "properties": {
         "logo": { "type": "string" },
         "socialHandle": { "type": "string" },
-        "palette": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Color" } }
+        "palette": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Color" } },
+        "tokens": { "type": "object", "additionalProperties": { "type": "string" } }
       }
     },
     "Element": {
@@ -136,7 +137,7 @@
         "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_.:-]+$" },
         "type": {
           "enum": [
-            "Image", "Text", "Heading", "Subtitle", "Logo", "Badge", "CTA Button",
+            "Image", "Text", "Heading", "Subtitle", "Body Text", "Logo", "Badge", "CTA Button",
             "Shape", "Divider", "Gradient", "Icon", "Progress Bar", "QR Code",
             "Social Handle", "Sticker", "Decorative Object"
           ]
@@ -152,7 +153,7 @@
         "locked": { "type": "boolean" },
         "content": { "type": "string" },
         "source": { "type": "string" },
-        "fontFamily": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9 _,\"'-]+$" },
+        "fontFamily": { "type": "string", "minLength": 1, "pattern": "^(?:[A-Za-z0-9 _,\"'-]+|\\$(?:[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*|\\{[A-Za-z0-9_.-]+\\}))$" },
         "fontWeight": { "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 100, "maximum": 900 }] },
         "fontSize": { "type": "number", "exclusiveMinimum": 0 },
         "lineHeight": { "type": "number", "exclusiveMinimum": 0 },
@@ -202,7 +203,9 @@
         "icon": { "type": "string" },
         "progress": { "type": "number", "minimum": 0, "maximum": 100 },
         "style": { "type": "object" },
-        "data": { "type": "object" }
+        "data": { "type": "object" },
+        "animations": { "type": "array", "items": { "$ref": "#/$defs/NodeAnimation" } },
+        "effects": { "type": "array", "items": { "$ref": "#/$defs/Effect" } }
       },
       "allOf": [
         {
@@ -218,6 +221,73 @@
           "then": { "required": ["padding", "radius", "border", "gradient", "shadow", "icon"] }
         }
       ]
+    },
+    "NodeAnimation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset"],
+      "properties": {
+        "preset": { "enum": ["fade", "slide", "scale", "rotate", "bounce", "pop", "zoom", "blur", "motion-blur"] },
+        "durationMs": { "type": "number", "exclusiveMinimum": 0 },
+        "delayMs": { "type": "number", "minimum": 0 },
+        "easing": { "enum": ["linear", "ease-in", "ease-out", "ease-in-out"] },
+        "loop": { "type": "boolean" },
+        "direction": { "enum": ["normal", "reverse", "alternate", "alternate-reverse"] },
+        "groupId": { "type": "string" },
+        "keyframes": { "type": "array", "items": { "$ref": "#/$defs/Keyframe" } },
+        "from": { "$ref": "#/$defs/AnimationValues" },
+        "to": { "$ref": "#/$defs/AnimationValues" }
+      }
+    },
+    "Effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["drop-shadow", "inner-shadow", "outer-glow", "blur", "glass", "opacity", "blend-mode", "gradient-fill", "gradient-border", "stroke", "rounded-corners", "mask", "clipping", "color-overlay", "image-filters", "brightness", "contrast", "highlights", "temperature", "tint", "vignette", "noise", "film-grain"] },
+        "enabled": { "type": "boolean" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "color": { "$ref": "#/$defs/Color" },
+        "blendMode": { "enum": ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion"] },
+        "blur": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "offsetX": { "type": "number", "minimum": -1000, "maximum": 1000 },
+        "offsetY": { "type": "number", "minimum": -1000, "maximum": 1000 },
+        "spread": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "width": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "radius": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "amount": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "temperature": { "type": "number", "minimum": -1000, "maximum": 1000 },
+        "tint": { "type": "number", "minimum": -1000, "maximum": 1000 },
+        "gradient": { "$ref": "#/$defs/Gradient" },
+        "shape": { "enum": ["rect", "rounded", "circle", "ellipse", "diamond"] },
+        "sourceId": { "type": "string" },
+        "invert": { "type": "boolean" },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "seed": { "type": "integer" }
+      }
+    },
+    "AnimationValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "opacity": { "type": "number" },
+        "translateX": { "type": "number" },
+        "translateY": { "type": "number" },
+        "scaleX": { "type": "number" },
+        "scaleY": { "type": "number" },
+        "rotation": { "type": "number" },
+        "blur": { "type": "number", "minimum": 0, "maximum": 1000 }
+      }
+    },
+    "Keyframe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "values"],
+      "properties": {
+        "offset": { "type": "number", "minimum": 0, "maximum": 1 },
+        "values": { "$ref": "#/$defs/AnimationValues" }
+      }
     },
     "Animation": {
       "type": "object",

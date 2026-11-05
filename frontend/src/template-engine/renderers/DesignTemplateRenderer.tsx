@@ -1,5 +1,6 @@
-import { createElement, useMemo, type CSSProperties, type ReactElement } from "react";
+import { createElement, Fragment, useMemo, type CSSProperties, type ReactElement } from "react";
 import { getDesignElementRenderer } from "../components/designElementRegistry";
+import { DesignDevTool } from "../components/DesignDevTool";
 import type {
   DesignAnimation,
   DesignFormat,
@@ -21,6 +22,7 @@ const FORMAT_DIMENSIONS: Record<DesignFormat, { width: number; height: number }>
   portrait: { width: 1080, height: 1350 },
   story: { width: 1080, height: 1920 },
   square: { width: 1080, height: 1080 },
+  landscape: { width: 1920, height: 1080 },
 };
 
 function animationCss(template: DesignTemplate, enabled: boolean): string {
@@ -52,9 +54,11 @@ function backgroundStyle(
     ? context.assets?.[template.background.image] || template.background.image
     : undefined;
   const gradient = template.background.gradient;
-  const resolveColor = (color: string) => color.startsWith("$")
-    ? template.branding.palette?.[color.slice(1)] || color
-    : color;
+  const resolveColor = (color: string) => {
+    if (!color.startsWith("$")) return color;
+    const token = color.slice(1).replace(/^\{/, "").replace(/\}$/, "");
+    return template.branding.tokens?.[token] || template.branding.palette?.[token.replace(/^colors\./, "")] || color;
+  };
   const gradientCss = gradient
     ? gradient.type === "radial"
       ? `radial-gradient(circle, ${gradient.stops.map((stop) => `${resolveColor(stop.color)} ${stop.position * 100}%`).join(", ")})`
@@ -96,18 +100,25 @@ export function DesignTemplateRenderer({
     }).join("")
     : "";
 
-  return createElement("div", {
-    className,
-    "data-template-id": template.id,
-    "data-template-format": renderContext.format || "portrait",
-    style: backgroundStyle(template, renderContext, selectedFormat),
-  },
-  animationStyles ? createElement("style", { dangerouslySetInnerHTML: { __html: `${animationStyles}${animationRules}` } }) : null,
-  ...elements.map((element) => {
-    const Renderer = getDesignElementRenderer(element.type);
-    if (!Renderer) throw new Error(`No renderer registered for element type "${element.type}".`);
-    return createElement(Renderer, { key: element.id, element, template, context: renderContext });
-  }));
+  return createElement(
+    Fragment,
+    null,
+    createElement("div", {
+      className,
+      "data-template-id": template.id,
+      "data-template-format": renderContext.format || "portrait",
+      style: backgroundStyle(template, renderContext, selectedFormat),
+    },
+    animationStyles ? createElement("style", { dangerouslySetInnerHTML: { __html: `${animationStyles}${animationRules}` } }) : null,
+    ...elements.map((element) => {
+      const Renderer = getDesignElementRenderer(element.type);
+      if (!Renderer) throw new Error(`No renderer registered for element type "${element.type}".`);
+      return createElement(Renderer, { key: element.id, element, template, context: renderContext });
+    })),
+    process.env.NODE_ENV !== "production"
+      ? createElement(DesignDevTool, { template, format: selectedFormat })
+      : null,
+  );
 }
 
 export default DesignTemplateRenderer;

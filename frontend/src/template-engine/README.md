@@ -72,6 +72,14 @@ The current engine work is architecture-only: it does not add drag/drop,
 editing UI, autosave, or a new export pipeline. Existing v1 templates keep using
 the current CanvasRenderer and its portrait/story/square export behavior.
 
+### Design Dev Tool
+
+In development builds, `DesignTemplateRenderer` includes a hidden diagnostics
+panel, opened with **Alt + Shift + D** and closed with **Escape**. It reports
+template validation status, element types/counts, animations, base canvas and
+active format dimensions, and the normalized JSON (with a copy action). The
+panel is not rendered in production builds and does not change template data.
+
 ## Existing v1 canvas renderer
 
 The renderer accepts a JSON string or a `TemplateConfig`, then composes a

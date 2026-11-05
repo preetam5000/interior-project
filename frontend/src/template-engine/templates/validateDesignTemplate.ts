@@ -3,9 +3,10 @@ import { parseTemplateConfig } from "../validate";
 import { fromBackendTemplateConfig, fromLegacyTemplateConfig } from "./legacyTemplateAdapter";
 import type { DesignElement, DesignTemplate } from "../types/designTemplate";
 import type { TemplateConfig } from "../types";
+import { validateDesignEffects } from "../core/effects";
 
-const COLOR_PATTERN = /^(#[\da-f]{3,8}|rgba?\(\s*[\d.%\s,]+\)|hsla?\(\s*[\d.%\s,deg]+\)|transparent|currentColor|\$[\w-]+)$/i;
-const FONT_FAMILY_PATTERN = /^[\w\s,'"-]+$/;
+const COLOR_PATTERN = /^(#[\da-f]{3,8}|rgba?\(\s*[\d.%\s,]+\)|hsla?\(\s*[\d.%\s,deg]+\)|transparent|currentColor|\$(?:[\w-]+(?:\.[\w-]+)*|\{[\w.-]+\}))$/i;
+const FONT_FAMILY_PATTERN = /^(?:[\w\s,'"-]+|\$(?:[\w-]+(?:\.[\w-]+)*|\{[\w.-]+\}))$/;
 const REQUIRED_TEXT_TYPES = new Set(["Text", "Heading", "Subtitle", "Badge", "CTA Button", "Social Handle", "Sticker"]);
 const SUPPORTED_TYPES = new Set<string>(getSupportedElementTypes());
 
@@ -39,7 +40,7 @@ export function validateDesignTemplate(value: unknown): string[] {
   }
   if (!Array.isArray(value.supportedFormats)
     || !value.supportedFormats.length
-    || !value.supportedFormats.every((format) => ["portrait", "story", "square"].includes(String(format)))) {
+    || !value.supportedFormats.every((format) => ["portrait", "story", "square", "landscape", "carousel", "tablet", "desktop"].includes(String(format)))) {
     errors.push("supportedFormats must contain supported output formats.");
   }
 
@@ -129,6 +130,7 @@ export function validateDesignTemplate(value: unknown): string[] {
         errors.push(`${path}.fontFamily must be a valid font family.`);
       }
       addColorError(errors, element.color, `${path}.color`);
+      errors.push(...validateDesignEffects(element.effects).map((message) => `${path}.${message}`));
       if (isRecord(element.stroke)) addColorError(errors, element.stroke.color, `${path}.stroke.color`);
       if (isRecord(element.shadow)) addColorError(errors, element.shadow.color, `${path}.shadow.color`);
       if (isRecord(element.border)) addColorError(errors, element.border.color, `${path}.border.color`);
@@ -145,6 +147,35 @@ export function validateDesignTemplate(value: unknown): string[] {
             }
           });
         }
+      }
+      if (element.animations !== undefined) {
+        if (!Array.isArray(element.animations)) errors.push(`${path}.animations must be an array.`);
+        else element.animations.forEach((animation: unknown, animationIndex: number) => {
+          const animationPath = `${path}.animations[${animationIndex}]`;
+          if (!isRecord(animation)) { errors.push(`${animationPath} must be an object.`); return; }
+          if (!["fade", "slide", "scale", "rotate", "bounce", "pop", "zoom", "blur", "motion-blur"].includes(String(animation.preset))) errors.push(`${animationPath}.preset is unsupported.`);
+          if (animation.durationMs !== undefined && (typeof animation.durationMs !== "number" || !Number.isFinite(animation.durationMs) || animation.durationMs <= 0)) errors.push(`${animationPath}.durationMs must be positive.`);
+          if (animation.delayMs !== undefined && (typeof animation.delayMs !== "number" || !Number.isFinite(animation.delayMs) || animation.delayMs < 0)) errors.push(`${animationPath}.delayMs must be non-negative.`);
+          if (animation.easing !== undefined && !["linear", "ease-in", "ease-out", "ease-in-out"].includes(String(animation.easing))) errors.push(`${animationPath}.easing is unsupported.`);
+          if (animation.loop !== undefined && typeof animation.loop !== "boolean") errors.push(`${animationPath}.loop must be a boolean.`);
+          if (animation.direction !== undefined && !["normal", "reverse", "alternate", "alternate-reverse"].includes(String(animation.direction))) errors.push(`${animationPath}.direction is unsupported.`);
+          if (animation.groupId !== undefined && typeof animation.groupId !== "string") errors.push(`${animationPath}.groupId must be a string.`);
+          if (animation.keyframes !== undefined) {
+            if (!Array.isArray(animation.keyframes)) errors.push(`${animationPath}.keyframes must be an array.`);
+            else animation.keyframes.forEach((frame: unknown, frameIndex: number) => {
+              if (!isRecord(frame) || typeof frame.offset !== "number" || !Number.isFinite(frame.offset) || frame.offset < 0 || frame.offset > 1 || !isRecord(frame.values)) { errors.push(`${animationPath}.keyframes[${frameIndex}] must include a normalized offset and values.`); return; }
+              for (const [property, value] of Object.entries(frame.values)) if (!["opacity", "translateX", "translateY", "scaleX", "scaleY", "rotation", "blur"].includes(property) || typeof value !== "number" || !Number.isFinite(value)) errors.push(`${animationPath}.keyframes[${frameIndex}].values.${property} is unsupported.`);
+            });
+          }
+          for (const key of ["from", "to"] as const) {
+            const values = animation[key];
+            if (values === undefined) continue;
+            if (!isRecord(values)) { errors.push(`${animationPath}.${key} must be an object.`); continue; }
+            for (const [property, value] of Object.entries(values)) {
+              if (!["opacity", "translateX", "translateY", "scaleX", "scaleY", "rotation", "blur"].includes(property) || typeof value !== "number" || !Number.isFinite(value)) errors.push(`${animationPath}.${key}.${property} must be a supported finite animation value.`);
+            }
+          }
+        });
       }
     });
   }

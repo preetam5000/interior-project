@@ -19,6 +19,7 @@ const FORMAT_SIZES: Record<DesignFormat, { width: number; height: number }> = {
   portrait: { width: 1080, height: 1350 },
   story: { width: 1080, height: 1920 },
   square: { width: 1080, height: 1080 },
+  landscape: { width: 1920, height: 1080 },
 };
 
 const BACKEND_PRESET_TEMPLATES = {
@@ -402,8 +403,8 @@ export function fromLegacyTemplateConfig(config: TemplateConfig): DesignTemplate
       ...size,
       unit: "px",
       safeZones: Object.fromEntries(
-        (["portrait", "story", "square"] as const).map((format) => {
-          const zone = resolved.layout.safe_zones?.[format] || resolved.layout.safe_area || {};
+        (["portrait", "story", "square", "landscape"] as const).map((format) => {
+          const zone = (format === "landscape" ? undefined : resolved.layout.safe_zones?.[format]) || resolved.layout.safe_area || {};
           return [format, {
             top: zone.top ?? 0,
             right: zone.right ?? 0,

@@ -25,6 +25,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from services.template_config import DEFAULT_STYLE, logo_url_error
 from services.template_renderer import TemplateRenderer
+from services.design_document_renderer import render_design_document
 
 log = logging.getLogger("template_editor")
 
@@ -176,7 +177,7 @@ def _resolved_logo(config: dict[str, Any]) -> Path | None:
 
 
 def render_config(image_path: str | Path, config: dict[str, Any],
-                  brand: dict[str, Any]) -> tuple[bytes, str | None]:
+                  brand: dict[str, Any], variant: str = "portrait") -> tuple[bytes, str | None]:
     """Render `config` over a photo with the TemplateRenderer.
 
     Returns the full-size JPEG bytes and a warning when the template's logo could
@@ -189,6 +190,18 @@ def render_config(image_path: str | Path, config: dict[str, Any],
         # A broken logo must not block previews; surface it and fall back to the brand logo.
         logo, logo_error = None, str(exc)
         log.warning("Template logo unavailable: %s", exc)
+
+    if config.get("design_document"):
+        if logo is None and brand.get("logo_url"):
+            try:
+                logo = resolve_logo(str(brand["logo_url"]))
+            except TemplateRenderError:
+                log.warning("Brand logo unavailable for DesignTemplate v2 render")
+        try:
+            return render_design_document(image_path, config["design_document"], config, variant, logo), logo_error
+        except Exception as exc:
+            log.exception("DesignTemplate v2 render failed")
+            raise TemplateRenderError(f"Template could not be rendered: {exc}") from exc
 
     work = Path(tempfile.mkdtemp(prefix="tpl_render_"))
     try:

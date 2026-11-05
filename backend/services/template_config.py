@@ -7,8 +7,11 @@ the AI recommendation pipeline.
 from __future__ import annotations
 
 import ipaddress
+import json
+import math
 import re
 from typing import Any
+from services.design_effects import validate_effects
 from urllib.parse import urlparse
 
 # Order matches the Template Library. A test asserts this list holds the same types as
@@ -88,6 +91,53 @@ _PRESET_DATA = (
 
 class TemplateConfigError(ValueError):
     """Raised when a template config contains an invalid value."""
+
+
+def _design_document(value: Any) -> dict[str, Any]:
+    """Validate the optional v2 document payload while retaining it losslessly."""
+    if not isinstance(value, dict) or value.get("schemaVersion") != 2:
+        raise TemplateConfigError("design_document must be a DesignTemplate v2 object")
+    try:
+        encoded = json.dumps(value, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise TemplateConfigError("design_document must contain JSON values") from exc
+    if len(encoded) > 1_500_000:
+        raise TemplateConfigError("design_document is too large")
+    canvas = value.get("canvas")
+    elements = value.get("elements")
+    if not isinstance(canvas, dict) or not isinstance(elements, list) or len(elements) > 500:
+        raise TemplateConfigError("design_document must include a canvas and at most 500 elements")
+    for key in ("width", "height"):
+        number = canvas.get(key)
+        if isinstance(number, bool) or not isinstance(number, (int, float)) or not math.isfinite(number) or not 1 <= number <= 10000:
+            raise TemplateConfigError(f"design_document.canvas.{key} must be between 1 and 10000")
+    seen: set[str] = set()
+    for index, element in enumerate(elements):
+        path = f"design_document.elements[{index}]"
+        if not isinstance(element, dict) or not isinstance(element.get("id"), str) or not element["id"]:
+            raise TemplateConfigError(f"{path}.id must be non-empty text")
+        if element["id"] in seen:
+            raise TemplateConfigError(f"design_document contains duplicate element id {element['id']!r}")
+        seen.add(element["id"])
+        if not isinstance(element.get("type"), str):
+            raise TemplateConfigError(f"{path}.type must be text")
+        effect_errors = validate_effects(element.get("effects"))
+        if effect_errors:
+            raise TemplateConfigError(f"{path}.{effect_errors[0]}")
+        for key in ("x", "y", "width", "height", "rotation"):
+            number = element.get(key)
+            if isinstance(number, bool) or not isinstance(number, (int, float)) or not math.isfinite(number):
+                raise TemplateConfigError(f"{path}.{key} must be a finite number")
+            if key in {"x", "y"} and abs(number) > 5:
+                raise TemplateConfigError(f"{path}.{key} is outside supported bounds")
+            if key in {"width", "height"} and not 0 < number <= 5:
+                raise TemplateConfigError(f"{path}.{key} must be positive and no greater than 5")
+            if key == "rotation" and abs(number) > 1_000_000:
+                raise TemplateConfigError(f"{path}.rotation is outside supported bounds")
+        for key in ("visible", "locked"):
+            if not isinstance(element.get(key), bool):
+                raise TemplateConfigError(f"{path}.{key} must be a boolean")
+    return value
 
 
 # ------------------------------------------------------------------ validators --
@@ -218,7 +268,7 @@ def sanitize_config(raw: dict[str, Any] | None, base: dict[str, Any] | None = No
                             tuple(t.lower() for t in TEMPLATE_TYPES), "template_type").upper()
     start = base if base and base.get("template_type") == template_type else default_config(template_type)
     merged = {**start, **{k: v for k, v in raw.items() if k in DEFAULT_STYLE or k in COPY_FIELDS}}
-    return {
+    result = {
         "template_type": template_type,
         "headline": _text(merged.get("headline"), "headline", LIMITS["headline"]),
         "subtitle": _text(merged.get("subtitle"), "subtitle", LIMITS["subtitle"]),
@@ -235,6 +285,12 @@ def sanitize_config(raw: dict[str, Any] | None, base: dict[str, Any] | None = No
         "logo_position": _choice(merged.get("logo_position"), LOGO_POSITIONS, "logo_position"),
         "button_style": _choice(merged.get("button_style"), BUTTON_STYLES, "button_style"),
     }
+    document = raw.get("design_document", start.get("design_document"))
+    if "design_document" in raw and document is None:
+        raise TemplateConfigError("design_document must be a DesignTemplate v2 object")
+    if document is not None:
+        result["design_document"] = _design_document(document)
+    return result
 
 
 def clean_name(value: Any) -> str:

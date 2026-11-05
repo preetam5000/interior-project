@@ -6,6 +6,8 @@ import type {
   DesignRenderContext,
   DesignTemplate,
 } from "../types/designTemplate";
+import { resolveEffectPlan } from "../core/effects";
+import { effectPlanToCss } from "../render/adapters/cssEffectAdapter";
 
 export interface DesignElementRendererProps {
   element: DesignElement;
@@ -25,7 +27,11 @@ function resolveContent(element: DesignElement, context: DesignRenderContext): s
 
 function resolveValue(value: string | undefined, template: DesignTemplate): string | undefined {
   if (!value?.startsWith("$")) return value;
-  return template.branding.palette?.[value.slice(1)] || value;
+  const token = value.slice(1).replace(/^\{/, "").replace(/\}$/, "");
+  return template.branding.tokens?.[token]
+    || template.branding.palette?.[token.replace(/^colors\./, "")]
+    || template.branding.palette?.[token]
+    || value;
 }
 
 function gradientCss(gradient: DesignGradient, template: DesignTemplate): string {
@@ -59,7 +65,7 @@ function elementStyle(element: DesignElement, template: DesignTemplate): CSSProp
     justifyContent: element.alignment === "right" ? "flex-end" : element.alignment === "center" ? "center" : "flex-start",
     textAlign: element.alignment || "left",
     color: resolveValue(element.color, template),
-    fontFamily: element.fontFamily,
+    fontFamily: resolveValue(element.fontFamily, template),
     fontWeight: element.fontWeight,
     fontSize: fontSize ? scale(fontSize) : undefined,
     lineHeight: element.lineHeight,
@@ -87,9 +93,14 @@ function elementStyle(element: DesignElement, template: DesignTemplate): CSSProp
     boxShadow: element.shadow
       ? `${scale(element.shadow.offsetX)} ${scale(element.shadow.offsetY)} ${scale(element.shadow.blur)} ${resolveValue(element.shadow.color, template)}`
       : undefined,
-    ...(element.style as CSSProperties | undefined),
+    ...Object.fromEntries(Object.entries(element.style || {}).map(([key, value]) => {
+      const resolved = typeof value === "string" ? resolveValue(value, template) : value;
+      const isLength = ["padding", "margin", "borderRadius", "borderWidth", "gap", "fontSize", "letterSpacing"].includes(key);
+      return [key, isLength && typeof resolved === "string" && /^-?\d+(?:\.\d+)?$/.test(resolved) ? `${resolved}px` : resolved];
+    })) as CSSProperties,
   } satisfies CSSProperties;
-  return style;
+  const effects = resolveEffectPlan(element, template.canvas, (value) => resolveValue(value, template) || value);
+  return { ...style, ...effectPlanToCss(effects, template.canvas.width) };
 }
 
 function ContentElement({ element, template, context }: DesignElementRendererProps): ReactElement {
@@ -116,7 +127,6 @@ function ContentElement({ element, template, context }: DesignElementRendererPro
       style: {
         ...common.style,
         objectFit: element.crop === "contain" ? "contain" : element.crop === "fill" ? "fill" : "cover",
-        filter: `brightness(${element.brightness ?? 1}) contrast(${element.contrast ?? 1}) saturate(${element.saturation ?? 1}) blur(${element.blur || 0}px)`,
       },
     });
   }
@@ -187,6 +197,7 @@ const registeredTypes: DesignElementType[] = [
   "Text",
   "Heading",
   "Subtitle",
+  "Body Text",
   "Logo",
   "Badge",
   "CTA Button",

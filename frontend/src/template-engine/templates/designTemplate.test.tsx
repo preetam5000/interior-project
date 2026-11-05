@@ -1,13 +1,18 @@
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DESIGN_ELEMENT_REGISTRY, getSupportedElementTypes } from "../components/designElementRegistry";
 import { DesignTemplateRenderer } from "../renderers/DesignTemplateRenderer";
 import { TEMPLATE_REGISTRY } from "./TemplateRegistry";
 import { fromLegacyTemplateConfig } from "./legacyTemplateAdapter";
-import { parseTemplateDocument } from "./validateDesignTemplate";
-import { validateDesignTemplate } from "./validateDesignTemplate";
+import { parseTemplateDocument, validateDesignTemplate } from "./validateDesignTemplate";
 import { getPremiumTemplate, PREMIUM_TEMPLATES } from "./premiumTemplates";
 import type { DesignTemplate } from "../types/designTemplate";
+
+Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+  configurable: true,
+  value: true,
+});
 
 function sampleTemplate(): DesignTemplate {
   return {
@@ -82,7 +87,8 @@ function backendPresetConfig(template_type: typeof backendPresetTypes[number]) {
 describe("JSON design template architecture", () => {
   test("registers the full reusable element component registry", () => {
     const types = getSupportedElementTypes();
-    expect(types).toHaveLength(16);
+    expect(types).toHaveLength(17);
+    expect(types).toContain("Body Text");
     types.forEach((type) => expect(DESIGN_ELEMENT_REGISTRY[type]).toBeDefined());
   });
 
@@ -151,5 +157,42 @@ describe("JSON design template architecture", () => {
     expect(markup).toContain('data-element-id="headline"');
     expect(markup).toContain("A thoughtful interior");
     expect(markup).toContain("aspect-ratio:1080 / 1920");
+  });
+
+  test("opens hidden diagnostics from the keyboard shortcut and closes on Escape", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => {
+        root.render(createElement(DesignTemplateRenderer, {
+          template: sampleTemplate(),
+          format: "portrait",
+        }));
+      });
+      expect(document.querySelector('[data-testid="design-dev-tool"]')).toBeNull();
+
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", {
+          key: "d",
+          altKey: true,
+          shiftKey: true,
+          bubbles: true,
+        }));
+      });
+      const panel = document.querySelector('[data-testid="design-dev-tool"]');
+      expect(panel?.textContent).toContain("Design Dev Tool");
+      expect(panel?.textContent).toContain("✓ Valid");
+      expect(panel?.textContent).toContain("Heading");
+      expect(panel?.textContent).toContain('"schemaVersion": 2');
+
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      });
+      expect(document.querySelector('[data-testid="design-dev-tool"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 });

@@ -46,6 +46,34 @@ def test_style_defaults_reproduce_the_original_output(photo):
     assert not _differs(with_style, without)
 
 
+def test_design_document_payload_controls_preview_and_export_render(photo):
+    document = {
+        "schemaVersion": 2,
+        "canvas": {"width": 1080, "height": 1350},
+        "background": {"color": "#ffffff"},
+        "branding": {"palette": {}},
+        "elements": [{
+            "id": "headline", "type": "Heading", "x": 0.08, "y": 0.08,
+            "width": 0.84, "height": 0.22, "rotation": 0, "opacity": 1,
+            "visible": True, "locked": False, "content": "Original heading",
+            "fontFamily": "Georgia", "fontSize": 56, "color": "#111111",
+        }],
+    }
+    original_config = tc.sanitize_config({"template_type": "TIP", "design_document": document})
+    edited_document = {
+        **document,
+        "elements": [{
+            **document["elements"][0], "x": 0.36, "y": 0.62, "rotation": 15,
+            "content": "Canvas edited heading",
+        }],
+    }
+    edited_config = tc.sanitize_config({"template_type": "TIP", "headline": "Canvas edited heading",
+                                        "design_document": edited_document})
+    before, _ = tes.render_config(photo, original_config, BRAND, "portrait")
+    after, _ = tes.render_config(photo, edited_config, BRAND, "portrait")
+    assert _differs(Image.open(BytesIO(before)), Image.open(BytesIO(after)))
+
+
 def test_overlay_opacity_changes_the_scrim(photo):
     assert _differs(_render(photo, overlay_opacity=1.0), _render(photo, overlay_opacity=0.0),
                     (0, 1000, 1080, 1350))

@@ -33,6 +33,33 @@ def test_sanitize_drops_unknown_keys_and_normalises_values():
     assert "evil" not in cfg
 
 
+def test_sanitize_preserves_and_validates_the_optional_design_document():
+    document = {
+        "schemaVersion": 2,
+        "canvas": {"width": 1080, "height": 1350},
+        "elements": [{
+            "id": "headline", "type": "Heading", "x": 0.2, "y": 0.3,
+            "width": 0.6, "height": 0.15, "rotation": 15, "visible": True, "locked": False,
+        }],
+    }
+    config = tc.sanitize_config({"template_type": "TIP", "headline": "Edited", "design_document": document})
+    assert config["design_document"] == document
+    assert tc.sanitize_config({"headline": "Saved again"}, base=config)["design_document"] == document
+
+
+@pytest.mark.parametrize("document", [
+    None,
+    {"schemaVersion": 1, "canvas": {}, "elements": []},
+    {"schemaVersion": 2, "canvas": {"width": 0, "height": 100}, "elements": []},
+    {"schemaVersion": 2, "canvas": {"width": 100, "height": 100}, "elements": [
+        {"id": "x", "x": 0, "y": 0, "width": 1, "height": 1, "rotation": float("nan"), "visible": True, "locked": False},
+    ]},
+])
+def test_sanitize_rejects_invalid_design_document(document):
+    with pytest.raises(tc.TemplateConfigError):
+        tc.sanitize_config({"template_type": "TIP", "design_document": document})
+
+
 @pytest.mark.parametrize("raw", [
     {"template_type": "NOPE"},
     {"template_type": "TIP", "font": "comic"},

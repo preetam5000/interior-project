@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { TypeBadge, StatusBadge, ConfidenceRing, Spinner, FullLoader } from "@/components/common/Bits";
 import { BeforeAfter, FeedPreview, StoryPreview, ReelPreview, SlideReorder } from "@/components/post/Previews";
 import { HashtagEditor, ImageEditDialog, ReplaceMediaDialog, ScheduleDialog, RejectDialog } from "@/components/post/Editors";
-import TemplateEditor from "@/components/post/TemplateEditor";
+const TemplateEditor = lazy(() => import("@/components/post/TemplateEditor"));
 import StoryMusicPicker from "@/components/post/StoryMusicPicker";
 import { usePostActions } from "@/components/post/QuickApprove";
 
@@ -213,7 +213,7 @@ export default function PostReview() {
           )}
           {media?.kind === "image" && can(user, "upload") && (
             <div className="flex flex-wrap gap-2">
-              <TemplateEditor
+              <Suspense fallback={<Button variant="outline" className="rounded-xl" disabled><Spinner className="mr-2"/>Opening template editor…</Button>}><TemplateEditor
                 media={media}
                 open={templateEditorOpen}
                 onOpenChange={setTemplateEditorOpen}
@@ -222,7 +222,7 @@ export default function PostReview() {
                   await qc.invalidateQueries({ queryKey: ["post", id] });
                   await qc.invalidateQueries({ queryKey: ["posts"] });
                 }}
-              />
+              /></Suspense>
             </div>
           )}
         </div>

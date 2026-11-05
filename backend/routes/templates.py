@@ -110,7 +110,7 @@ async def _render(source_name: str | None, config: dict, brand: dict, variant: s
     else:
         source = await asyncio.to_thread(tes.sample_image_path, variant)
     async with _render_slots:
-        return await asyncio.to_thread(tes.render_config, source, config, brand)
+        return await asyncio.to_thread(tes.render_config, source, config, brand, variant)
 
 
 # ------------------------------------------------------------------- library --

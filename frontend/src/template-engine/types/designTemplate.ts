@@ -1,9 +1,13 @@
-export type DesignFormat = "portrait" | "story" | "square";
+import type { DesignEffect } from "../core/effects/types";
+
+export type DesignFormat = "portrait" | "story" | "square" | "landscape";
+export type TemplateOutputFormat = DesignFormat | "carousel" | "tablet" | "desktop";
 export type DesignElementType =
   | "Image"
   | "Text"
   | "Heading"
   | "Subtitle"
+  | "Body Text"
   | "Logo"
   | "Badge"
   | "CTA Button"
@@ -18,6 +22,30 @@ export type DesignElementType =
   | "Decorative Object";
 
 export type DesignAlignment = "left" | "center" | "right";
+export type AnimationPresetId = "fade" | "slide" | "scale" | "rotate" | "bounce" | "pop" | "zoom" | "blur" | "motion-blur";
+export type AnimationEasing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
+export type AnimationDirection = "normal" | "reverse" | "alternate" | "alternate-reverse";
+export interface NodeAnimationValues {
+  opacity?: number;
+  translateX?: number;
+  translateY?: number;
+  scaleX?: number;
+  scaleY?: number;
+  rotation?: number;
+  blur?: number;
+}
+export interface NodeAnimationMetadata {
+  preset: AnimationPresetId;
+  durationMs?: number;
+  delayMs?: number;
+  easing?: AnimationEasing;
+  loop?: boolean;
+  direction?: AnimationDirection;
+  groupId?: string;
+  keyframes?: Array<{ offset: number; values: NodeAnimationValues }>;
+  from?: NodeAnimationValues;
+  to?: NodeAnimationValues;
+}
 
 export interface DesignGradient {
   type: "linear" | "radial";
@@ -80,6 +108,10 @@ export interface DesignElement {
   progress?: number;
   style?: Record<string, string | number | boolean | DesignGradient | DesignShadow | DesignBorder | DesignStroke>;
   data?: Record<string, string | number | boolean>;
+  /** Optional editor motion metadata; renderers may ignore it until playback support is added. */
+  animations?: NodeAnimationMetadata[];
+  /** Serializable, ordered visual effects consumed by renderer adapters. */
+  effects?: DesignEffect[];
 }
 
 export interface DesignCanvas {
@@ -87,6 +119,7 @@ export interface DesignCanvas {
   height: number;
   unit: "px";
   safeZones?: Partial<Record<DesignFormat, { top: number; right: number; bottom: number; left: number }>>;
+  grid?: { columns: number; gutter: number; margin: number };
 }
 
 export interface DesignBackground {
@@ -99,6 +132,7 @@ export interface DesignBranding {
   logo?: string;
   socialHandle?: string;
   palette?: Record<string, string>;
+  tokens?: Record<string, string>;
 }
 
 export interface DesignAnimation {
@@ -120,7 +154,7 @@ export interface DesignTemplate {
   description: string;
   tags: string[];
   thumbnail: string;
-  supportedFormats: DesignFormat[];
+  supportedFormats: TemplateOutputFormat[];
   canvas: DesignCanvas;
   background: DesignBackground;
   branding: DesignBranding;

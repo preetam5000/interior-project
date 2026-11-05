@@ -1,19 +1,21 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { FullLoader } from "@/components/common/Bits";
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
-import Dashboard from "@/pages/Dashboard";
-import Upload from "@/pages/Upload";
-import Approvals from "@/pages/Approvals";
-import PostReview from "@/pages/PostReview";
-import Library from "@/pages/Library";
-import Analytics from "@/pages/Analytics";
-import AIDashboard from "@/pages/AIDashboard";
-import Settings from "@/pages/Settings";
-import GoogleDriveImports from "@/pages/GoogleDriveImports";
+import AppErrorBoundary from "@/components/common/AppErrorBoundary";
+const Login = lazy(() => import("@/pages/Login"));
+const Register = lazy(() => import("@/pages/Register"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Upload = lazy(() => import("@/pages/Upload"));
+const Approvals = lazy(() => import("@/pages/Approvals"));
+const PostReview = lazy(() => import("@/pages/PostReview"));
+const Library = lazy(() => import("@/pages/Library"));
+const Analytics = lazy(() => import("@/pages/Analytics"));
+const AIDashboard = lazy(() => import("@/pages/AIDashboard"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const GoogleDriveImports = lazy(() => import("@/pages/GoogleDriveImports"));
 
 function Protected({ children }) {
   const { user } = useAuth();
@@ -30,15 +32,15 @@ function PublicOnly({ children }) {
 
 document.documentElement.classList.toggle("dark", (localStorage.getItem("isa-theme") || "dark") === "dark");
 
-const page = (el) => <Protected>{el}</Protected>;
+const page = (el) => <Suspense fallback={<FullLoader />}><Protected>{el}</Protected></Suspense>;
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+        <AppErrorBoundary><Routes>
+          <Route path="/login" element={<Suspense fallback={<FullLoader />}><PublicOnly><Login /></PublicOnly></Suspense>} />
+          <Route path="/register" element={<Suspense fallback={<FullLoader />}><PublicOnly><Register /></PublicOnly></Suspense>} />
           <Route path="/" element={page(<Dashboard />)} />
           <Route path="/upload" element={page(<Upload />)} />
           <Route path="/approvals" element={page(<Approvals />)} />
@@ -49,7 +51,7 @@ export default function App() {
           <Route path="/ai-dashboard" element={page(<AIDashboard />)} />
           <Route path="/settings" element={page(<Settings />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        </Routes></AppErrorBoundary>
       </BrowserRouter>
       <Toaster position="bottom-right" richColors closeButton theme="dark" />
     </AuthProvider>

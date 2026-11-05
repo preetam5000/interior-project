@@ -1,0 +1,11 @@
+import type { DesignElement, DesignElementType } from "../types/designTemplate";
+export type ComponentKind = "hero-image" | "background-image" | "gradient-overlay" | "glass-card" | "luxury-card" | "rounded-badge" | "cta-button" | "statistic-card" | "testimonial-card" | "feature-list" | "timeline" | "before-after-divider" | "project-info-card" | "contact-footer" | "social-footer" | "logo-block" | "price-tag" | "quote-card";
+export interface DesignComponentSpec { id: string; kind: ComponentKind; x: number; y: number; width: number; height: number; text?: string; asset?: string; tokens?: Record<string, string | number> }
+const ELEMENT_TYPE: Record<ComponentKind, DesignElementType> = { "hero-image": "Image", "background-image": "Image", "gradient-overlay": "Gradient", "glass-card": "Shape", "luxury-card": "Shape", "rounded-badge": "Badge", "cta-button": "CTA Button", "statistic-card": "Text", "testimonial-card": "Text", "feature-list": "Body Text", timeline: "Progress Bar", "before-after-divider": "Divider", "project-info-card": "Text", "contact-footer": "Text", "social-footer": "Social Handle", "logo-block": "Logo", "price-tag": "Sticker", "quote-card": "Text" };
+/** Build reusable editor-native component elements. Styles use palette tokens, never fixed colors. */
+export function createDesignComponent(spec: DesignComponentSpec): DesignElement {
+  const image = spec.kind === "hero-image" || spec.kind === "background-image";
+  const type = ELEMENT_TYPE[spec.kind];
+  const tokens = spec.tokens || {};
+  return { id: spec.id, type, x: spec.x, y: spec.y, width: spec.width, height: spec.height, rotation: 0, opacity: Number(tokens.opacity ?? 1), zIndex: 0, visible: true, locked: false, content: spec.text || (image ? "content.image" : spec.kind.replace(/-/g, " ")), source: spec.asset || (image ? "asset:primary" : undefined), fontFamily: "$fonts.body", fontSize: Number(tokens.fontSize ?? 24), fontWeight: "regular", lineHeight: 1.25, letterSpacing: 0, color: String(tokens.color || "$colors.text"), alignment: "left", radius: Number(tokens.radius ?? 0), borderRadius: Number(tokens.radius ?? 0), style: { background: String(tokens.background || (spec.kind === "gradient-overlay" ? "$colors.overlay" : "$colors.surface")), boxShadow: String(tokens.shadow || "$shadows.card") } };
+}

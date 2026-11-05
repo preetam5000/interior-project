@@ -33,6 +33,7 @@ export interface CanvasRenderOptions {
   context: RenderContext;
   variant: OutputVariant;
   canvas?: HTMLCanvasElement;
+  transparentBackground?: boolean;
 }
 
 export interface CanvasRendererOptions {
@@ -61,7 +62,7 @@ export class CanvasRenderer {
     if (!context) throw new Error("This browser does not support a 2D canvas renderer.");
 
     const template: TemplateConfig = resolveTemplateLayout(parsedTemplate, options.variant);
-    await this.drawTemplate(context, template, options.context);
+    await this.drawTemplate(context, template, options.context, Boolean(options.transparentBackground));
     return canvas;
   }
 
@@ -88,9 +89,12 @@ export class CanvasRenderer {
     context: CanvasRenderingContext2D,
     template: TemplateConfig,
     renderContext: RenderContext,
+    transparentBackground = false,
   ): Promise<void> {
-    context.fillStyle = resolveColor("$surface", template.colors);
-    context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+    if (!transparentBackground) {
+      context.fillStyle = resolveColor("$surface", template.colors);
+      context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+    }
 
     const overlays = new Map(template.overlays.map((item) => [item.id, item]));
     const badges = new Map(template.badges.map((item) => [item.id, item]));
